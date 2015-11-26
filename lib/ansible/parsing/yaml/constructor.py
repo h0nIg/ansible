@@ -31,7 +31,8 @@ except ImportError:
 
 
 class AnsibleConstructor(Constructor):
-    def __init__(self, file_name=None):
+    def __init__(self, loader, file_name=None):
+        self._loader = loader
         self._ansible_file_name = file_name
         super(AnsibleConstructor, self).__init__()
 
@@ -102,6 +103,14 @@ class AnsibleConstructor(Constructor):
 
         return (datasource, line, column)
 
+    def construct_vault(self, node):
+        data = self.construct_scalar(node)
+        try:
+            return self._loader.load(data)
+        except AnsibleParserError as exc:
+            raise ConstructorError(None, None,
+                    "found invalid vault string", node.start_mark)
+
 AnsibleConstructor.add_constructor(
     u'tag:yaml.org,2002:map',
     AnsibleConstructor.construct_yaml_map)
@@ -121,3 +130,7 @@ AnsibleConstructor.add_constructor(
 AnsibleConstructor.add_constructor(
     u'tag:yaml.org,2002:seq',
     AnsibleConstructor.construct_yaml_seq)
+
+AnsibleConstructor.add_constructor(
+    u'!vault',
+    AnsibleConstructor.construct_vault)

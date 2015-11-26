@@ -143,7 +143,7 @@ class DataLoader():
     def _safe_load(self, stream, file_name=None):
         ''' Implements yaml.safe_load(), except using our custom loader class. '''
 
-        loader = AnsibleLoader(stream, file_name)
+        loader = AnsibleLoader(self, stream, file_name)
         try:
             return loader.get_single_data()
         finally:
