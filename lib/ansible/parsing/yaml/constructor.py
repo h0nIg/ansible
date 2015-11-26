@@ -22,6 +22,7 @@ __metaclass__ = type
 from yaml.constructor import Constructor, ConstructorError
 from yaml.nodes import MappingNode
 from ansible.parsing.yaml.objects import AnsibleMapping, AnsibleSequence, AnsibleUnicode
+from ansible.parsing.vault import VaultLib
 
 try:
     from __main__ import display
@@ -31,7 +32,8 @@ except ImportError:
 
 
 class AnsibleConstructor(Constructor):
-    def __init__(self, file_name=None):
+    def __init__(self, file_name=None, vault_password=None):
+        self._vault_password = vault_password
         self._ansible_file_name = file_name
         super(AnsibleConstructor, self).__init__()
 
@@ -102,6 +104,27 @@ class AnsibleConstructor(Constructor):
 
         return (datasource, line, column)
 
+    def construct_vault(self, node):
+        data = self.construct_scalar(node)
+
+        if self._vault_password is None:
+            raise ConstructorError(None, None,
+                    "found vault but no vault password provided", node.start_mark)
+
+        vault = VaultLib(password=self._vault_password)
+        if not vault.is_encrypted(data):
+            raise ConstructorError(None, None,
+                    "found vault but argument is not encrypted", node.start_mark)
+
+        data = vault.decrypt(data)
+        loader = AnsibleLoader(data)
+
+        try:
+            return loader.get_single_data()
+        except YAMLError as exc:
+            raise ConstructorError(None, None,
+                    "found valid vault string but content is invalid", node.start_mark)
+
 AnsibleConstructor.add_constructor(
     u'tag:yaml.org,2002:map',
     AnsibleConstructor.construct_yaml_map)
@@ -121,3 +144,7 @@ AnsibleConstructor.add_constructor(
 AnsibleConstructor.add_constructor(
     u'tag:yaml.org,2002:seq',
     AnsibleConstructor.construct_yaml_seq)
+
+AnsibleConstructor.add_constructor(
+    u'!vault',
+    AnsibleConstructor.construct_vault)
