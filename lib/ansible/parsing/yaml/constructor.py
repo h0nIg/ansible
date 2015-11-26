@@ -31,7 +31,7 @@ except ImportError:
     display = Display()
 
 
-class AnsibleConstructor(Constructor):
+class AnsibleConstructor(SafeConstructor):
     def __init__(self, file_name=None, vault_password=None):
         self._vault_password = vault_password
         self._ansible_file_name = file_name
